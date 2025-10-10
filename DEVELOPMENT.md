@@ -628,14 +628,26 @@ Each phase is broken down into small, focused tasks that can be completed within
 
 ---
 
-### Task 11.4: Security Hardening
-- [ ] Add TLS support for node-to-node communication
-- [ ] Implement basic authentication for HTTP API
-- [ ] Add request rate limiting
-- [ ] Implement access control (read/write permissions)
-- [ ] Add audit logging
+### Task 11.4: Security Hardening ✅
+- [x] Add TLS support for node-to-node communication
+- [x] Implement basic authentication for HTTP API
+- [x] Add request rate limiting
+- [x] Implement access control (read/write permissions)
+- [x] Add audit logging
 
-**Deliverables**: Security features
+**Deliverables**: Security features ✅
+
+**Status**: ✅ Complete
+
+**Implementation details:**
+- Created `src/security/` module with TLS, authentication, rate limiting, and access control
+- Implemented TLS configuration with mutual TLS support (`src/security/tls.rs`)
+- Implemented API key and bearer token authentication (`src/security/auth.rs`)
+- Implemented token bucket rate limiting with per-client tracking (`src/security/rate_limit.rs`)
+- Implemented role-based access control (RBAC) with permissions (Read, Write, Delete, Admin)
+- Extended logging module with audit event logging
+- Created comprehensive security tests (13 integration tests)
+- All security tests passing (45 unit tests + 13 integration tests = 58 total)
 
 ---
 
