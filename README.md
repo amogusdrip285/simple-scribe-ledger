@@ -608,6 +608,187 @@ cargo test read_request
 cargo test consistency
 ```
 
+## Security Features
+
+### TLS Encryption
+
+Secure node-to-node communication with TLS/SSL encryption:
+
+**Configuration:**
+```toml
+[security.tls]
+enabled = true
+cert_path = "/path/to/cert.pem"
+key_path = "/path/to/key.pem"
+
+# Optional: Mutual TLS
+ca_cert_path = "/path/to/ca.pem"
+require_client_cert = true
+```
+
+**Generating Certificates:**
+```bash
+# Generate self-signed certificate for development
+openssl req -x509 -newkey rsa:4096 \
+  -keyout key.pem -out cert.pem \
+  -days 365 -nodes \
+  -subj "/CN=localhost"
+
+# For production, use certificates from a trusted CA
+```
+
+**Rust Configuration:**
+```rust
+use hyra_scribe_ledger::security::TlsConfig;
+
+let tls_config = TlsConfig::new(
+    PathBuf::from("/path/to/cert.pem"),
+    PathBuf::from("/path/to/key.pem")
+);
+
+// Enable mutual TLS
+let mutual_tls = tls_config.with_mutual_tls(
+    PathBuf::from("/path/to/ca.pem")
+);
+```
+
+### Authentication
+
+Secure HTTP API access with API key or bearer token authentication:
+
+**API Key Authentication:**
+```bash
+# Using X-API-Key header
+curl -H "X-API-Key: your-secret-key" \
+  http://localhost:8080/my-key
+
+# Using Authorization Bearer header
+curl -H "Authorization: Bearer your-secret-token" \
+  http://localhost:8080/my-key
+```
+
+**Configuration:**
+```rust
+use hyra_scribe_ledger::security::{AuthConfig, Role};
+
+let mut auth_config = AuthConfig::new(true);
+
+// Add API keys with roles
+auth_config.add_api_key("admin-key".to_string(), Role::admin());
+auth_config.add_api_key("read-key".to_string(), Role::read_only());
+auth_config.add_api_key("write-key".to_string(), Role::read_write());
+```
+
+**Role-Based Access Control (RBAC):**
+
+| Role | Read | Write | Delete | Admin (Cluster/Metrics) |
+|------|------|-------|--------|------------------------|
+| **Read-only** | ✓ | ✗ | ✗ | ✗ |
+| **Read-write** | ✓ | ✓ | ✗ | ✗ |
+| **Admin** | ✓ | ✓ | ✓ | ✓ |
+
+**Example Usage:**
+```bash
+# Admin operations (requires admin role)
+curl -H "X-API-Key: admin-key" http://localhost:8080/metrics
+curl -H "X-API-Key: admin-key" http://localhost:8080/cluster/info
+
+# Write operations (requires write permission)
+curl -H "X-API-Key: write-key" \
+  -X PUT http://localhost:8080/data \
+  -d '{"value": "test"}'
+
+# Read operations (any authenticated user)
+curl -H "X-API-Key: read-key" http://localhost:8080/data
+```
+
+### Rate Limiting
+
+Protect against abuse with token bucket rate limiting:
+
+**Configuration:**
+```rust
+use hyra_scribe_ledger::security::RateLimiterConfig;
+
+// 100 requests per minute per client, with burst of 10
+let rate_config = RateLimiterConfig::new(100, 60)
+    .with_burst_size(10);
+```
+
+**Per-Client Limits:**
+- Rate limits are tracked per client (IP address or API key)
+- Each client has an independent token bucket
+- Burst capacity allows temporary spikes above average rate
+
+**Example:**
+```bash
+# First 100 requests succeed
+for i in {1..100}; do
+  curl -H "X-API-Key: test-key" http://localhost:8080/data
+done
+
+# Additional requests are rate limited (HTTP 429)
+curl -H "X-API-Key: test-key" http://localhost:8080/data
+# Returns: {"error": "Rate limit exceeded. Try again later."}
+```
+
+### Audit Logging
+
+Track security-relevant events for compliance and monitoring:
+
+**Audit Events:**
+- Authentication attempts (success/failure)
+- Authorization decisions (granted/denied)
+- Data access (read/write/delete)
+- Rate limit violations
+- Configuration changes
+- System events
+
+**Structured Audit Logs:**
+```rust
+use hyra_scribe_ledger::logging::{audit_log, AuditEvent};
+
+audit_log(
+    AuditEvent::AuthSuccess,
+    Some("user@example.com"),
+    "login",
+    Some("/auth"),
+    "success",
+    Some("User authenticated successfully")
+);
+```
+
+**Log Output (JSON format):**
+```json
+{
+  "timestamp": "2024-01-15T10:30:00Z",
+  "audit_event": "auth_success",
+  "user": "user@example.com",
+  "action": "login",
+  "resource": "/auth",
+  "result": "success",
+  "details": "User authenticated successfully"
+}
+```
+
+**Security Best Practices:**
+1. Enable TLS for all production deployments
+2. Use strong API keys (32+ random characters)
+3. Rotate API keys regularly
+4. Configure rate limits based on expected load
+5. Monitor audit logs for suspicious activity
+6. Use mutual TLS for node-to-node communication
+7. Keep certificates and keys secure (file permissions 600)
+
+**Test Coverage:**
+```bash
+# Security module tests
+cargo test --lib security::
+
+# Integration tests
+cargo test security_tests
+```
+
 ## Deployment
 
 ### Using Shell Scripts
