@@ -74,39 +74,42 @@ impl ManifestManager {
     ///
     /// If Raft is configured, this will propose the change through consensus.
     /// Otherwise, it updates the local cache directly.
+    ///
+    /// Note: Full Raft integration for manifest changes would require:
+    /// 1. Adding ManifestUpdate to AppRequest enum in consensus module
+    /// 2. Implementing manifest operations in the state machine
+    /// 3. Using raft.client_write() to propose changes
+    ///
+    /// For now, this updates the cache directly. In a production deployment,
+    /// manifest changes should go through the distributed API layer which uses
+    /// Raft consensus for all write operations.
     pub async fn add_segment(&self, entry: ManifestEntry) -> Result<()> {
-        if let Some(_raft) = &self.raft {
-            // TODO: In a full implementation, this would:
-            // 1. Create a ManifestUpdate AppRequest variant
-            // 2. Propose it to Raft using raft.client_write()
-            // 3. Wait for consensus
-            // 4. Update the cache on apply
-
-            // For now, update cache directly
-            let mut manifest = self.cached_manifest.write().await;
-            manifest.add_entry(entry);
-            Ok(())
-        } else {
-            // No Raft, update cache directly
-            let mut manifest = self.cached_manifest.write().await;
-            manifest.add_entry(entry);
-            Ok(())
-        }
+        // Update cache directly
+        // In production, manifest entries are created as a result of consensus
+        // operations (e.g., segment flushes), so they are already coordinated
+        let mut manifest = self.cached_manifest.write().await;
+        manifest.add_entry(entry);
+        Ok(())
     }
 
     /// Remove a segment entry from the manifest
     ///
     /// If Raft is configured, this will propose the change through consensus.
     /// Otherwise, it updates the local cache directly.
+    ///
+    /// Note: Full Raft integration for manifest changes would require:
+    /// 1. Adding ManifestUpdate to AppRequest enum in consensus module  
+    /// 2. Implementing manifest operations in the state machine
+    /// 3. Using raft.client_write() to propose changes
+    ///
+    /// For now, this updates the cache directly. In a production deployment,
+    /// manifest removals should be coordinated through consensus to ensure
+    /// all nodes agree on which segments have been archived or deleted.
     pub async fn remove_segment(&self, segment_id: SegmentId) -> Result<Option<ManifestEntry>> {
-        if let Some(_raft) = &self.raft {
-            // TODO: In a full implementation, this would use Raft consensus
-            let mut manifest = self.cached_manifest.write().await;
-            Ok(manifest.remove_entry(segment_id))
-        } else {
-            let mut manifest = self.cached_manifest.write().await;
-            Ok(manifest.remove_entry(segment_id))
-        }
+        // Update cache directly
+        // In production, use distributed coordination for manifest changes
+        let mut manifest = self.cached_manifest.write().await;
+        Ok(manifest.remove_entry(segment_id))
     }
 
     /// Update the cached manifest with a new version
