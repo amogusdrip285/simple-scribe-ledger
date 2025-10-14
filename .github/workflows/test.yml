@@ -174,3 +174,9 @@ jobs:
 
     - name: Test cache module (Task 11.3)
       run: cargo test --lib 'cache::' --verbose
+
+    - name: Run security tests (Task 11.4)
+      run: cargo test --test security_tests --verbose
+
+    - name: Test security module (Task 11.4)
+      run: cargo test --lib 'security::' --verbose
