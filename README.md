@@ -193,16 +193,18 @@ For cluster deployments, configure each node with unique ports and IDs:
 
 ## HTTP API
 
+> **Note**: The examples below use port 8080 which is the default for scribe-node. The standalone http_server binary uses port 3000. Adjust the port based on your configuration.
+
 ### Monitoring & Metrics
 
 **Health Check**
 ```bash
-curl http://localhost:3000/health
+curl http://localhost:8080/health
 ```
 
 **Legacy Metrics (JSON)**
 ```bash
-curl http://localhost:3000/metrics
+curl http://localhost:8080/metrics
 ```
 
 Returns JSON with:
@@ -212,7 +214,7 @@ Returns JSON with:
 
 **Prometheus Metrics**
 ```bash
-curl http://localhost:3000/metrics/prometheus
+curl http://localhost:8080/metrics/prometheus
 ```
 
 Returns Prometheus-formatted metrics including:
@@ -229,7 +231,7 @@ Returns Prometheus-formatted metrics including:
 scrape_configs:
   - job_name: 'scribe-ledger'
     static_configs:
-      - targets: ['localhost:3000']
+      - targets: ['localhost:8080', 'localhost:8090', 'localhost:8100']
     metrics_path: '/metrics/prometheus'
     scrape_interval: 15s
 ```
@@ -267,17 +269,17 @@ curl http://localhost:8080/metrics
 
 **Cluster Status**
 ```bash
-curl http://localhost:8080/cluster/status
+curl http://localhost:8080/cluster/info
 ```
 
 **List Members**
 ```bash
-curl http://localhost:8080/cluster/members
+curl http://localhost:8080/cluster/nodes
 ```
 
 **Get Leader**
 ```bash
-curl http://localhost:8080/cluster/leader
+curl http://localhost:8080/cluster/leader/info
 ```
 
 ## Storage Backend
@@ -610,9 +612,11 @@ cargo test consistency
 
 ## Security Features
 
+> **Note**: The security module provides TLS, authentication, rate limiting, and audit logging components. These features are available as library modules but are not yet integrated into the HTTP server or scribe-node binaries. Integration requires additional implementation work to wire these components into the server middleware and configuration system.
+
 ### TLS Encryption
 
-Secure node-to-node communication with TLS/SSL encryption:
+TLS configuration module for secure node-to-node communication:
 
 **Configuration:**
 ```toml
@@ -654,18 +658,9 @@ let mutual_tls = tls_config.with_mutual_tls(
 
 ### Authentication
 
-Secure HTTP API access with API key or bearer token authentication:
+Authentication module with API key and bearer token support:
 
-**API Key Authentication:**
-```bash
-# Using X-API-Key header
-curl -H "X-API-Key: your-secret-key" \
-  http://localhost:8080/my-key
-
-# Using Authorization Bearer header
-curl -H "Authorization: Bearer your-secret-token" \
-  http://localhost:8080/my-key
-```
+> **Note**: Authentication is available as a module but requires integration into the HTTP server to be functional.
 
 **Configuration:**
 ```rust
@@ -687,24 +682,11 @@ auth_config.add_api_key("write-key".to_string(), Role::read_write());
 | **Read-write** | ✓ | ✓ | ✗ | ✗ |
 | **Admin** | ✓ | ✓ | ✓ | ✓ |
 
-**Example Usage:**
-```bash
-# Admin operations (requires admin role)
-curl -H "X-API-Key: admin-key" http://localhost:8080/metrics
-curl -H "X-API-Key: admin-key" http://localhost:8080/cluster/info
 
-# Write operations (requires write permission)
-curl -H "X-API-Key: write-key" \
-  -X PUT http://localhost:8080/data \
-  -d '{"value": "test"}'
-
-# Read operations (any authenticated user)
-curl -H "X-API-Key: read-key" http://localhost:8080/data
-```
 
 ### Rate Limiting
 
-Protect against abuse with token bucket rate limiting:
+Token bucket rate limiting module for request throttling:
 
 **Configuration:**
 ```rust
@@ -715,26 +697,11 @@ let rate_config = RateLimiterConfig::new(100, 60)
     .with_burst_size(10);
 ```
 
-**Per-Client Limits:**
-- Rate limits are tracked per client (IP address or API key)
-- Each client has an independent token bucket
-- Burst capacity allows temporary spikes above average rate
-
-**Example:**
-```bash
-# First 100 requests succeed
-for i in {1..100}; do
-  curl -H "X-API-Key: test-key" http://localhost:8080/data
-done
-
-# Additional requests are rate limited (HTTP 429)
-curl -H "X-API-Key: test-key" http://localhost:8080/data
-# Returns: {"error": "Rate limit exceeded. Try again later."}
-```
+> **Note**: Rate limiting requires integration into HTTP server middleware to be functional.
 
 ### Audit Logging
 
-Track security-relevant events for compliance and monitoring:
+Structured audit logging module for security events:
 
 **Audit Events:**
 - Authentication attempts (success/failure)
@@ -744,7 +711,7 @@ Track security-relevant events for compliance and monitoring:
 - Configuration changes
 - System events
 
-**Structured Audit Logs:**
+**Example:**
 ```rust
 use hyra_scribe_ledger::logging::{audit_log, AuditEvent};
 
@@ -758,27 +725,7 @@ audit_log(
 );
 ```
 
-**Log Output (JSON format):**
-```json
-{
-  "timestamp": "2024-01-15T10:30:00Z",
-  "audit_event": "auth_success",
-  "user": "user@example.com",
-  "action": "login",
-  "resource": "/auth",
-  "result": "success",
-  "details": "User authenticated successfully"
-}
-```
-
-**Security Best Practices:**
-1. Enable TLS for all production deployments
-2. Use strong API keys (32+ random characters)
-3. Rotate API keys regularly
-4. Configure rate limits based on expected load
-5. Monitor audit logs for suspicious activity
-6. Use mutual TLS for node-to-node communication
-7. Keep certificates and keys secure (file permissions 600)
+> **Note**: Audit logging is available as a module. Integration into the application requires calling audit_log at appropriate security checkpoints.
 
 **Test Coverage:**
 ```bash
