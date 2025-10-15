@@ -89,7 +89,7 @@ The system uses a multi-tiered architecture combining local and cloud storage:
 
 ```bash
 # Clone the repository
-git clone https://github.com/amogusdrip285/simple-scribe-ledger.git
+git clone https://github.com/hyra-network/simple-scribe-ledger.git
 cd simple-scribe-ledger
 
 # Build the project
@@ -240,9 +240,15 @@ scrape_configs:
 
 **Store Data (PUT)**
 ```bash
+# Unix/Linux/macOS (using curl):
 curl -X PUT http://localhost:8080/my-key \
   -H "Content-Type: application/octet-stream" \
   --data-binary "my value data"
+
+# Windows PowerShell (using Invoke-WebRequest):
+Invoke-WebRequest -Uri http://localhost:8080/my-key -Method PUT `
+  -Headers @{"Content-Type"="application/octet-stream"} `
+  -Body "my value data"
 ```
 
 **Retrieve Data (GET)**
